@@ -1,1 +1,38 @@
+name: Deploy Hexo Blog
 
+on:
+  push:
+    branches:
+      - main  # 监听推送到 main 分支的操作
+    paths:
+      - '**'  # 监听根目录下的所有文件变化（包括根目录的文件和子目录）
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. 检出仓库的最新版本
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # 2. 安装必要的工具
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y sshpass rsync
+
+    # 3. 同步根目录下的文件到远程服务器
+    - name: Sync root directory files to server
+      run: |
+        echo "Syncing files from root directory to server..."
+        sshpass -p "${{ secrets.SERVER_PASSWORD }}" rsync -avz --ignore-errors --delete --progress -e "ssh -o StrictHostKeyChecking=no" ./ root@${{ secrets.SERVER_HOST }}:/blog/
+
+    # 4. 在服务器上执行 Hexo 命令
+    - name: Run Hexo commands on server
+      run: |
+        echo "Running Hexo commands on server..."
+        sshpass -p "${{ secrets.SERVER_PASSWORD }}" ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_HOST }} << 'EOF'
+          cd /blog  # 进入服务器上的 Hexo 目录
+          hexo g  # 生成静态文件
+        EOF
